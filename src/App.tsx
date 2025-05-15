@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { AuthProvider } from './contexts/AuthContext';
-import { useAuth } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import LoginForm from './components/Auth/LoginForm';
 import SignUpForm from './components/Auth/SignUpForm';
 import ThreadList from './components/ThreadList';
@@ -8,7 +7,6 @@ import ChatWindow from './components/ChatWindow';
 import { Thread } from './types';
 import { MenuIcon } from 'lucide-react';
 import { Toaster } from 'react-hot-toast';
-import { supabase } from './supabaseClient';
 
 function AuthenticatedApp() {
   const { signOut } = useAuth();
@@ -86,7 +84,6 @@ function AuthenticatedApp() {
 
   return (
     <div className="h-screen flex overflow-hidden">
-      <Toaster position="top-right" />
       <button
         onClick={() => setIsThreadListOpen(!isThreadListOpen)}
         className="fixed top-4 left-4 z-50 p-2 bg-gray-800 hover:bg-gray-700 rounded-full text-white shadow transition-colors md:left-2"
@@ -180,6 +177,15 @@ function UnauthenticatedApp() {
 }
 
 function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+      <Toaster />
+    </AuthProvider>
+  );
+}
+
+function AppContent() {
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -190,12 +196,7 @@ function App() {
     );
   }
 
-  return (
-    <AuthProvider>
-      {user ? <AuthenticatedApp /> : <UnauthenticatedApp />}
-      <Toaster />
-    </AuthProvider>
-  );
+  return user ? <AuthenticatedApp /> : <UnauthenticatedApp />;
 }
 
 export default App;
