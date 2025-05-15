@@ -8,6 +8,13 @@ import ChatWindow from './components/ChatWindow';
 import { Thread } from './types';
 import { MenuIcon } from 'lucide-react';
 import { Toaster } from 'react-hot-toast';
+import { supabase } from './supabaseClient';
+
+useEffect(() => {
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    console.log('session:', session);  // ← null なら未ログイン
+  });
+}, []);
 
 function AuthenticatedApp() {
   const { signOut } = useAuth();
