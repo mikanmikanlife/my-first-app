@@ -45,6 +45,61 @@ export async function saveMessageToSupabase(threadId: string, message: Message) 
 }
 
 /**
+ * 新しいスレッドを作成
+ */
+export async function createThread(user: User, title: string, initialMessage: Message): Promise<Thread | null> {
+  const thread: Thread = {
+    id: crypto.randomUUID(),
+    title,
+    messages: [initialMessage],
+    createdAt: new Date(),
+    updatedAt: new Date()
+  };
+
+  await saveThreadToSupabase(thread, user.id);
+  await saveMessageToSupabase(thread.id, initialMessage);
+
+  return thread;
+}
+
+/**
+ * メッセージを追加
+ */
+export async function addMessage(threadId: string, message: Message): Promise<boolean> {
+  try {
+    await saveMessageToSupabase(threadId, message);
+    return true;
+  } catch (error) {
+    console.error('メッセージ追加エラー:', error);
+    return false;
+  }
+}
+
+/**
+ * スレッドのタイトルを更新
+ */
+export async function updateThreadTitle(threadId: string, newTitle: string): Promise<boolean> {
+  const { error } = await supabase
+    .from('threads')
+    .update({ title: newTitle })
+    .eq('id', threadId);
+
+  return !error;
+}
+
+/**
+ * スレッドを削除
+ */
+export async function deleteThread(threadId: string): Promise<boolean> {
+  const { error } = await supabase
+    .from('threads')
+    .delete()
+    .eq('id', threadId);
+
+  return !error;
+}
+
+/**
  * Supabase からスレッド＋メッセージを取得
  */
 export const fetchThreadsWithMessages = async (user: User): Promise<Thread[]> => {
