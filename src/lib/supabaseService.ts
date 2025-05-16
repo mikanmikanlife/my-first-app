@@ -65,9 +65,9 @@ export async function createThread(user: User, title: string, initialMessage: Me
 /**
  * メッセージを追加
  */
-export async function addMessage(threadId: string, message: Message): Promise<boolean> {
+export async function addMessage(threadId: string, message: Message, userId?: string): Promise<boolean> {
   try {
-    await saveMessageToSupabase(threadId, message);
+    await saveMessageToSupabase(threadId, message, userId);
     return true;
   } catch (error) {
     console.error('メッセージ追加エラー:', error);
