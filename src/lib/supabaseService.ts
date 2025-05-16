@@ -26,7 +26,7 @@ export async function saveThreadToSupabase(thread: Thread, userId: string) {
 /**
  * メッセージを Supabase に保存
  */
-export async function saveMessageToSupabase(threadId: string, message: Message, userId: string) {
+export async function saveMessageToSupabase(threadId: string, message: Message, userId?: string) {
   const { id, content, role, timestamp } = message;
 
   const { error } = await supabase.from('messages').insert([
