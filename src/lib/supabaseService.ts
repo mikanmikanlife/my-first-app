@@ -29,6 +29,9 @@ export async function saveThreadToSupabase(thread: Thread, userId: string) {
 export async function saveMessageToSupabase(threadId: string, message: Message, userId?: string) {
   const { id, content, role, timestamp } = message;
 
+  // userIdが未定義または不正な値の場合はnullを設定
+  const userIdOrNull = userId && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId) ? userId : null;
+
   const { error } = await supabase.from('messages').insert([
     {
       id,
@@ -36,7 +39,7 @@ export async function saveMessageToSupabase(threadId: string, message: Message, 
       content,
       role,
       created_at: timestamp.toISOString(),
-      user_id: userId
+      user_id: userIdOrNull
     }
    
   ]);
