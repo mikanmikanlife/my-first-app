@@ -28,7 +28,7 @@ function AuthenticatedApp() {
   const [newTitle, setNewTitle] = useState<string>('');
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const activeThread = threads.find(thread => thread.id === activeThreadId);
-  console.log(user)
+ 
 
   // 初期データの読み込み
   useEffect(() => {
