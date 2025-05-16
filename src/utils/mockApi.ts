@@ -25,7 +25,7 @@ export const getAIResponse = async (message: string): Promise<Message> => {
   }
   
   return {
-    id: generateId(),
+    id: uuidv4(),
     content: response,
     role: 'assistant',
     timestamp: new Date()
