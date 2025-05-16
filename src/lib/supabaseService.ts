@@ -1,162 +1,86 @@
-import { supabase } from './supabaseClient';
+import { supabase } from '../lib/supabaseClient';
 import { Thread, Message } from '../types';
 import { User } from '@supabase/supabase-js';
 
 /**
- * スレッドとメッセージを取得
+ * スレッドを Supabase に保存
+ */
+export async function saveThreadToSupabase(thread: Thread, userId: string) {
+  const { id, title, createdAt } = thread;
+
+  const { error } = await supabase.from('threads').insert([
+    {
+      id,
+      title,
+      created_at: createdAt.toISOString(),
+      user_id: userId,
+    }
+  ]);
+
+  if (error) {
+    console.error('スレッド保存失敗:', error.message);
+  }
+}
+
+/**
+ * メッセージを Supabase に保存
+ */
+export async function saveMessageToSupabase(threadId: string, message: Message) {
+  const { id, content, role, timestamp } = message;
+
+  const { error } = await supabase.from('messages').insert([
+    {
+      id,
+      thread_id: threadId,
+      content,
+      role,
+      created_at: timestamp.toISOString(),
+    }
+  ]);
+
+  if (error) {
+    console.error('メッセージ保存失敗:', error.message);
+  }
+}
+
+/**
+ * Supabase からスレッド＋メッセージを取得
  */
 export const fetchThreadsWithMessages = async (user: User): Promise<Thread[]> => {
-  // スレッドの取得
   const { data: threads, error: threadsError } = await supabase
     .from('threads')
-    .select('*')
+    .select('id, title, created_at, updated_at')
     .eq('user_id', user.id)
-    .order('updated_at', { ascending: false });
+    .order('created_at', { ascending: false });
 
-  if (threadsError) {
-    console.error('スレッド取得エラー:', threadsError);
+  if (threadsError || !threads) {
+    console.error('スレッド取得失敗:', threadsError);
     return [];
   }
 
-  if (!threads.length) return [];
-
-  // スレッドに紐づくメッセージの取得
   const { data: messages, error: messagesError } = await supabase
     .from('messages')
-    .select('*')
-    .in('thread_id', threads.map(t => t.id))
-    .order('created_at', { ascending: true });
+    .select('id, thread_id, content, role, created_at');
 
-  if (messagesError) {
-    console.error('メッセージ取得エラー:', messagesError);
+  if (messagesError || !messages) {
+    console.error('メッセージ取得失敗:', messagesError);
     return [];
   }
 
-  // スレッドとメッセージを結合
-  return threads.map(thread => ({
+  const threadsWithMessages: Thread[] = threads.map((thread) => ({
     id: thread.id,
     title: thread.title,
     messages: messages
-      .filter(m => m.thread_id === thread.id)
-      .map(m => ({
+      .filter((m) => m.thread_id === thread.id)
+      .map((m) => ({
         id: m.id,
         content: m.content,
-        role: m.role as 'user' | 'assistant',
-        timestamp: new Date(m.created_at)
+        role: m.role,
+        timestamp: new Date(m.created_at),
       })),
     createdAt: new Date(thread.created_at),
-    updatedAt: new Date(thread.updated_at)
+    updatedAt: new Date(thread.updated_at),
   }));
-};
 
-/**
- * 新規スレッドを作成
- */
-export const createThread = async (
-  user: User,
-  title: string,
-  initialMessage: Message
-): Promise<Thread | null> => {
-  // スレッドの作成
-  const { data: thread, error: threadError } = await supabase
-    .from('threads')
-    .insert([{
-      user_id: user.id,
-      title
-    }])
-    .select()
-    .single();
-
-  if (threadError) {
-    console.error('スレッド作成エラー:', threadError);
-    return null;
-  }
-
-  // 初期メッセージの作成
-  const { error: messageError } = await supabase
-    .from('messages')
-    .insert([{
-      thread_id: thread.id,
-      content: initialMessage.content,
-      role: initialMessage.role
-    }]);
-
-  if (messageError) {
-    console.error('メッセージ作成エラー:', messageError);
-    return null;
-  }
-
-  return {
-    id: thread.id,
-    title: thread.title,
-    messages: [initialMessage],
-    createdAt: new Date(thread.created_at),
-    updatedAt: new Date(thread.updated_at)
-  };
-};
-
-/**
- * メッセージを追加
- */
-export const addMessage = async (
-  threadId: string,
-  message: Message
-): Promise<boolean> => {
-  const { error } = await supabase
-    .from('messages')
-    .insert([{
-      thread_id: threadId,
-      content: message.content,
-      role: message.role
-    }]);
-
-  if (error) {
-    console.error('メッセージ追加エラー:', error);
-    return false;
-  }
-
-  // スレッドの更新日時を更新
-  await supabase
-    .from('threads')
-    .update({ updated_at: new Date().toISOString() })
-    .eq('id', threadId);
-
-  return true;
-};
-
-/**
- * スレッドのタイトルを更新
- */
-export const updateThreadTitle = async (
-  threadId: string,
-  title: string
-): Promise<boolean> => {
-  const { error } = await supabase
-    .from('threads')
-    .update({ title })
-    .eq('id', threadId);
-
-  if (error) {
-    console.error('スレッドタイトル更新エラー:', error);
-    return false;
-  }
-
-  return true;
-};
-
-/**
- * スレッドを削除
- */
-export const deleteThread = async (threadId: string): Promise<boolean> => {
-  const { error } = await supabase
-    .from('threads')
-    .delete()
-    .eq('id', threadId);
-
-  if (error) {
-    console.error('スレッド削除エラー:', error);
-    return false;
-  }
-
-  return true;
+  return threadsWithMessages;
 };
