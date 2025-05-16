@@ -73,6 +73,7 @@ export async function createThread(user: User, title: string, initialMessage: Me
 export async function addMessage(threadId: string, message: Message, userId?: string): Promise<boolean> {
   try {
     await saveMessageToSupabase(threadId, message, userId);
+    console.log('addmessage内userId:',userId);
     return true;
   } catch (error) {
     console.error('メッセージ追加エラー:', error);
