@@ -169,7 +169,7 @@ function AuthenticatedApp() {
     }
 
     const initialMessage: Message = {
-      id: crypto.randomUUID(),
+      id: uuidv4(),
       content: 'こんにちは！どのようなことでお手伝いできますか？',
       role: 'assistant',
       timestamp: new Date()
