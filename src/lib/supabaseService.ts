@@ -14,6 +14,7 @@ export async function saveThreadToSupabase(thread: Thread, userId: string) {
       title,
       created_at: createdAt.toISOString(),
       user_id: userId,
+      // updated_at はトリガーで自動更新されるので指定不要
     }
   ]);
 
@@ -51,7 +52,7 @@ export const fetchThreadsWithMessages = async (user: User): Promise<Thread[]> =>
     .from('threads')
     .select('id, title, created_at, updated_at')
     .eq('user_id', user.id)
-    .order('created_at', { ascending: false });
+    .order('updated_at', { ascending: false }); // ← created_atから変更（任意）
 
   if (threadsError || !threads) {
     console.error('スレッド取得失敗:', threadsError);
