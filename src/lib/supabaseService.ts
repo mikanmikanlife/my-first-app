@@ -36,6 +36,7 @@ export async function saveMessageToSupabase(threadId: string, message: Message, 
       content,
       role,
       created_at: timestamp.toISOString(),
+      user_id: userId
     }
    
   ]);
