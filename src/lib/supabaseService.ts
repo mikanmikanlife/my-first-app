@@ -37,6 +37,7 @@ console.log(userId);
       role,
       created_at: timestamp.toISOString(),
     }
+    console.log(id);
   ]);
 
   if (error) {
