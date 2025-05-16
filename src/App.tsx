@@ -89,7 +89,7 @@ function AuthenticatedApp() {
 
   const handleNewThread = async () => {
     const initialMessage: Message = {
-      id: crypto.randomUUID(),
+      id: uuidv4(),
       content: 'こんにちは！どのようなことでお手伝いできますか？',
       role: 'assistant',
       timestamp: new Date()
@@ -109,7 +109,7 @@ function AuthenticatedApp() {
     if (!activeThread) return;
 
     const userMessage: Message = {
-      id: crypto.randomUUID(),
+      id: uuidv4(),
       content,
       role: 'user',
       timestamp: new Date()
