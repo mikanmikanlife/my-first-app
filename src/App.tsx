@@ -115,7 +115,7 @@ function AuthenticatedApp() {
     };
 
     // メッセージの追加
-    const success = await addMessage(activeThread.id, userMessage);
+    const success = await addMessage(activeThread.id, userMessage, user.id);
     if (!success) {
       toast.error('メッセージの送信に失敗しました');
       return;
