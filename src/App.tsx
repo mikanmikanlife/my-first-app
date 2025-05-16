@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import LoginForm from './components/Auth/LoginForm';
 import SignUpForm from './components/Auth/SignUpForm';
@@ -6,20 +6,50 @@ import ThreadList from './components/ThreadList';
 import ChatWindow from './components/ChatWindow';
 import { Thread, Message } from './types';
 import { getAIResponse } from './utils/mockApi';
-import { initialThreads } from './utils/mockData';
 import { MenuIcon } from 'lucide-react';
 import { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
+import {
+  fetchThreadsWithMessages,
+  createThread,
+  addMessage,
+  updateThreadTitle,
+  deleteThread
+} from './lib/supabaseService';
 
 function AuthenticatedApp() {
-  const { signOut } = useAuth();
-  const [threads, setThreads] = useState<Thread[]>(initialThreads);
-  const [activeThreadId, setActiveThreadId] = useState<string>(initialThreads[0].id);
+  const { user, signOut } = useAuth();
+  const [threads, setThreads] = useState<Thread[]>([]);
+  const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isThreadListOpen, setIsThreadListOpen] = useState<boolean>(true);
   const [threadIdBeingEdited, setThreadIdBeingEdited] = useState<string | null>(null);
   const [newTitle, setNewTitle] = useState<string>('');
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
 
-  const activeThread = threads.find(thread => thread.id === activeThreadId) || threads[0];
+  const activeThread = threads.find(thread => thread.id === activeThreadId);
+
+  // 初期データの読み込み
+  useEffect(() => {
+    if (user) {
+      loadThreads();
+    }
+  }, [user]);
+
+  const loadThreads = async () => {
+    try {
+      const loadedThreads = await fetchThreadsWithMessages(user!);
+      setThreads(loadedThreads);
+      if (loadedThreads.length > 0 && !activeThreadId) {
+        setActiveThreadId(loadedThreads[0].id);
+      }
+    } catch (error) {
+      console.error('スレッド読み込みエラー:', error);
+      toast.error('チャット履歴の読み込みに失敗しました');
+    } finally {
+      setIsInitialLoading(false);
+    }
+  };
 
   const handleStartRename = (threadId: string) => {
     const thread = threads.find(t => t.id === threadId);
@@ -34,13 +64,19 @@ function AuthenticatedApp() {
     setNewTitle('');
   };
 
-  const handleSaveRename = (threadId: string, newTitle: string) => {
+  const handleSaveRename = async (threadId: string, newTitle: string) => {
     if (newTitle.trim()) {
-      setThreads(threads.map(thread =>
-        thread.id === threadId
-          ? { ...thread, title: newTitle.trim() }
-          : thread
-      ));
+      const success = await updateThreadTitle(threadId, newTitle.trim());
+      if (success) {
+        setThreads(threads.map(thread =>
+          thread.id === threadId
+            ? { ...thread, title: newTitle.trim() }
+            : thread
+        ));
+        toast.success('タイトルを更新しました');
+      } else {
+        toast.error('タイトルの更新に失敗しました');
+      }
     }
     setThreadIdBeingEdited(null);
     setNewTitle('');
@@ -50,39 +86,51 @@ function AuthenticatedApp() {
     setActiveThreadId(threadId);
   };
 
-  const handleNewThread = () => {
-    const newThread: Thread = {
-      id: Math.random().toString(36).substring(2, 10),
-      title: '新しい会話',
-      messages: [{
-        id: Math.random().toString(36).substring(2, 10),
-        content: 'こんにちは！どのようなことでお手伝いできますか？',
-        role: 'assistant',
-        timestamp: new Date()
-      }],
-      createdAt: new Date(),
-      updatedAt: new Date()
+  const handleNewThread = async () => {
+    const initialMessage: Message = {
+      id: crypto.randomUUID(),
+      content: 'こんにちは！どのようなことでお手伝いできますか？',
+      role: 'assistant',
+      timestamp: new Date()
     };
-    setThreads([newThread, ...threads]);
-    setActiveThreadId(newThread.id);
+
+    const newThread = await createThread(user!, '新しい会話', initialMessage);
+    if (newThread) {
+      setThreads([newThread, ...threads]);
+      setActiveThreadId(newThread.id);
+      toast.success('新しい会話を開始しました');
+    } else {
+      toast.error('新しい会話の作成に失敗しました');
+    }
   };
 
   const handleSendMessage = async (content: string) => {
+    if (!activeThread) return;
+
     const userMessage: Message = {
-      id: Math.random().toString(36).substring(2, 10),
+      id: crypto.randomUUID(),
       content,
       role: 'user',
       timestamp: new Date()
     };
 
+    // メッセージの追加
+    const success = await addMessage(activeThread.id, userMessage);
+    if (!success) {
+      toast.error('メッセージの送信に失敗しました');
+      return;
+    }
+
+    // UIの更新
     let updatedThread = {
       ...activeThread,
-      updatedAt: new Date(),
       messages: [...activeThread.messages, userMessage]
     };
 
+    // 最初のメッセージの場合、タイトルを更新
     if (activeThread.messages.length === 1 && activeThread.messages[0].role === 'assistant') {
       const title = content.length > 30 ? content.substring(0, 30) + '...' : content;
+      await updateThreadTitle(activeThread.id, title);
       updatedThread = { ...updatedThread, title };
     }
 
@@ -90,54 +138,84 @@ function AuthenticatedApp() {
       thread.id === activeThreadId ? updatedThread : thread
     ));
 
+    // AI応答の取得と保存
     setIsLoading(true);
     try {
       const aiResponse = await getAIResponse(content);
-      const threadWithAiResponse = {
-        ...updatedThread,
-        updatedAt: new Date(),
-        messages: [...updatedThread.messages, aiResponse]
-      };
-      setThreads(threads.map(thread =>
-        thread.id === activeThreadId ? threadWithAiResponse : thread
-      ));
+      const success = await addMessage(activeThread.id, aiResponse);
+      if (success) {
+        const threadWithAiResponse = {
+          ...updatedThread,
+          messages: [...updatedThread.messages, aiResponse]
+        };
+        setThreads(threads.map(thread =>
+          thread.id === activeThreadId ? threadWithAiResponse : thread
+        ));
+      } else {
+        toast.error('AI応答の保存に失敗しました');
+      }
     } catch (error) {
       console.error('AIからの応答取得に失敗しました:', error);
+      toast.error('AI応答の取得に失敗しました');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleResetThread = () => {
-    if (window.confirm('この会話をリセットしますか？すべてのメッセージが削除されます。')) {
-      const resetThread: Thread = {
-        ...activeThread,
-        messages: [{
-          id: Math.random().toString(36).substring(2, 10),
-          content: 'こんにちは！どのようなことでお手伝いできますか？',
-          role: 'assistant',
-          timestamp: new Date()
-        }],
-        updatedAt: new Date()
-      };
-      setThreads(threads.map(thread =>
-        thread.id === activeThreadId ? resetThread : thread
-      ));
+  const handleResetThread = async () => {
+    if (!activeThread || !window.confirm('この会話をリセットしますか？すべてのメッセージが削除されます。')) {
+      return;
+    }
+
+    const initialMessage: Message = {
+      id: crypto.randomUUID(),
+      content: 'こんにちは！どのようなことでお手伝いできますか？',
+      role: 'assistant',
+      timestamp: new Date()
+    };
+
+    // 既存のスレッドを削除して新しいスレッドを作成
+    const success = await deleteThread(activeThread.id);
+    if (success) {
+      const newThread = await createThread(user!, activeThread.title, initialMessage);
+      if (newThread) {
+        setThreads(threads.map(thread =>
+          thread.id === activeThread.id ? newThread : thread
+        ));
+        toast.success('会話をリセットしました');
+      } else {
+        toast.error('会話のリセットに失敗しました');
+      }
+    } else {
+      toast.error('会話のリセットに失敗しました');
     }
   };
 
-  const handleDeleteThread = (threadId: string) => {
-    if (window.confirm('このチャットを削除してもよろしいですか？')) {
+  const handleDeleteThread = async (threadId: string) => {
+    if (!window.confirm('このチャットを削除してもよろしいですか？')) {
+      return;
+    }
+
+    const success = await deleteThread(threadId);
+    if (success) {
       const newThreads = threads.filter(thread => thread.id !== threadId);
       setThreads(newThreads);
-      if (threadId === activeThreadId) {
-        const latestThread = newThreads[0];
-        if (latestThread) {
-          setActiveThreadId(latestThread.id);
-        }
+      if (threadId === activeThreadId && newThreads.length > 0) {
+        setActiveThreadId(newThreads[0].id);
       }
+      toast.success('チャットを削除しました');
+    } else {
+      toast.error('チャットの削除に失敗しました');
     }
   };
+
+  if (isInitialLoading) {
+    return (
+      <div className="h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen flex overflow-hidden">
@@ -158,7 +236,7 @@ function AuthenticatedApp() {
         <div className="flex flex-col h-full">
           <ThreadList
             threads={threads}
-            activeThreadId={activeThreadId}
+            activeThreadId={activeThreadId || ''}
             onSelectThread={handleSelectThread}
             onNewThread={handleNewThread}
             threadIdBeingEdited={threadIdBeingEdited}
