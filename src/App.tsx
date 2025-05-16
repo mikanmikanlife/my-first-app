@@ -144,6 +144,7 @@ function AuthenticatedApp() {
     try {
       const aiResponse = await getAIResponse(content);
       const success = await addMessage(activeThread.id, aiResponse, null);
+      console.log('AIの回答='+aiResponse);
       if (success) {
         const threadWithAiResponse = {
           ...updatedThread,
