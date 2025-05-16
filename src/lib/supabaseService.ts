@@ -28,7 +28,7 @@ export async function saveThreadToSupabase(thread: Thread, userId: string) {
  */
 export async function saveMessageToSupabase(threadId: string, message: Message, userId?: string) {
   const { id, content, role, timestamp } = message;
-console.log(userId);
+
   const { error } = await supabase.from('messages').insert([
     {
       id,
@@ -37,7 +37,7 @@ console.log(userId);
       role,
       created_at: timestamp.toISOString(),
     }
-    console.log(id);
+   
   ]);
 
   if (error) {
