@@ -35,6 +35,7 @@ export async function saveMessageToSupabase(threadId: string, message: Message) 
       content,
       role,
       created_at: timestamp.toISOString(),
+      user_id: userId ?? null  // ← ここで undefined/null 明示的に対処
     }
   ]);
 
