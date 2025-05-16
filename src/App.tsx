@@ -16,6 +16,7 @@ import {
   updateThreadTitle,
   deleteThread
 } from './lib/supabaseService';
+import { v4 as uuidv4 } from 'uuid';
 
 function AuthenticatedApp() {
   const { user, signOut } = useAuth();
