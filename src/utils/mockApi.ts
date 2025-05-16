@@ -1,5 +1,5 @@
 import { Message, Thread } from '../types';
-
+import { v4 as uuidv4 } from 'uuid';
 // Generate unique IDs
 const generateId = () => Math.random().toString(36).substring(2, 10);
 
