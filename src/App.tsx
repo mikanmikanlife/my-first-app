@@ -143,7 +143,7 @@ function AuthenticatedApp() {
     setIsLoading(true);
     try {
       const aiResponse = await getAIResponse(content);
-      const success = await addMessage(activeThread.id, aiResponse);
+      const success = await addMessage(activeThread.id, aiResponse, user.id);
       if (success) {
         const threadWithAiResponse = {
           ...updatedThread,
