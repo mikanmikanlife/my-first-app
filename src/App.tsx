@@ -172,7 +172,8 @@ function AuthenticatedApp() {
       id: uuidv4(),
       content: 'こんにちは！どのようなことでお手伝いできますか？',
       role: 'assistant',
-      timestamp: new Date()
+      timestamp: new Date(),
+      user_id: null
     };
 
     // 既存のスレッドを削除して新しいスレッドを作成
